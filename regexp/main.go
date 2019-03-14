@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -40,6 +41,13 @@ func main() {
 
 	// Take the first argument as path to CMakeLists.txt
 	listFilePath := os.Args[1]
+
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+	fmt.Println(exPath)
 
 	newTemplate := getTemplate(listFilePath)
 
