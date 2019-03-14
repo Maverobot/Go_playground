@@ -30,12 +30,13 @@ func main() {
 	for i, match := range matches {
 		fmt.Printf("match %d: %s\n", i, match)
 	}
-
 }
 
+// findLibraryNames find the names of libraries and executables defined
+// by add_library and add_executable
 func findLibraryNames(text string) []string {
 	libNames := make([]string, 0, startSize)
-	targetMatch := string(` *add_executable\( *(\w*)`)
+	targetMatch := string(` *add_(?:library|executable)\( *(\w*)`)
 	r := regexp.MustCompile(targetMatch)
 	matches := r.FindAllStringSubmatch(text, -1)
 	for _, match := range matches {
