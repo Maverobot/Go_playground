@@ -6,9 +6,30 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 )
 
 const startSize = 8
+
+const template = `
+## ClangTools
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ClangTools.cmake OPTIONAL
+  RESULT_VARIABLE CLANG_TOOLS
+)
+if(CLANG_TOOLS)
+  file(GLOB_RECURSE SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+  file(GLOB_RECURSE HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+  )
+  add_format_target(${PROJECT_NAME} FILES ${SOURCES} ${HEADERS})
+  add_tidy_target(${PROJECT_NAME}
+    FILES ${SOURCES}
+    DEPENDS ${TARGETS}
+  )
+endif()
+`
 
 func main() {
 
@@ -17,21 +38,20 @@ func main() {
 		return
 	}
 
-	// Take the first argument as path to clang template
-	//pathTemplate := os.Args[1]
+	// Take the first argument as path to CMakeLists.txt
+	listFilePath := os.Args[1]
 
-	// Take the second argument as path to CMakeLists.txt
-	pathListFile := os.Args[1]
+	newTemplate := getTemplate(listFilePath)
 
+	fmt.Print(newTemplate)
+}
+
+func getTemplate(listFilePath string) string {
 	// Read files into strings
-	contentList, err := ioutil.ReadFile(pathListFile)
+	contentList, err := ioutil.ReadFile(listFilePath)
 	if err != nil {
 		panic(err)
 	}
-	//contentTemplate, err := ioutil.ReadFile(pathTemplate)
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	// Find library or executable names
 	targets := findLibraryNames(string(contentList))
@@ -42,6 +62,12 @@ func main() {
 	// Find project name
 	projectName, err := findProjectName(string(contentList))
 	fmt.Printf("Project name: %s\n", projectName)
+
+	// Puts project name into template
+	newTemplate := replaceString(template, `\$\{PROJECT_NAME\}`, projectName)
+
+	// Puts project name into template
+	return replaceString(newTemplate, `\$\{TARGETS\}`, strings.Join(targets, " "))
 }
 
 // findLibraryNames finds the names of libraries and executables defined
@@ -68,4 +94,9 @@ func findProjectName(text string) (string, error) {
 		return "", errors.New("no project name was found")
 	}
 	return matches[0][1], nil
+}
+
+func replaceString(src string, pattern string, repl string) string {
+	r := regexp.MustCompile(pattern)
+	return r.ReplaceAllString(src, repl)
 }
