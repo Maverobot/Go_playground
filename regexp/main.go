@@ -1,12 +1,10 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -44,12 +42,13 @@ func main() {
 		return
 	}
 
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	exPath := filepath.Dir(ex)
-	fmt.Println(exPath)
+	//  ex, err := os.Executable()
+	//  if err != nil {
+	//  	panic(err)
+	//  }
+
+	//	exPath := filepath.Dir(ex)
+	//	fmt.Println(exPath)
 
 	newTemplate := getTemplate(*listFilePath)
 
@@ -63,26 +62,25 @@ func getTemplate(listFilePath string) string {
 		panic(err)
 	}
 
+	targets := make(chan []string)
+	projectName := make(chan string)
+
 	// Find library or executable names
-	targets := findLibraryNames(string(contentList))
-	for i, match := range targets {
-		fmt.Printf("match %d: %s\n", i, match)
-	}
+	go findLibraryNames(string(contentList), targets)
 
 	// Find project name
-	projectName, err := findProjectName(string(contentList))
-	fmt.Printf("Project name: %s\n", projectName)
+	go findProjectName(string(contentList), projectName)
 
 	// Puts project name into template
-	newTemplate := replaceString(template, `\$\{PROJECT_NAME\}`, projectName)
+	newTemplate := replaceString(template, `\$\{PROJECT_NAME\}`, <-projectName)
 
 	// Puts project name into template
-	return replaceString(newTemplate, `\$\{TARGETS\}`, strings.Join(targets, " "))
+	return replaceString(newTemplate, `\$\{TARGETS\}`, strings.Join(<-targets, " "))
 }
 
 // findLibraryNames finds the names of libraries and executables defined
 // by add_library and add_executable
-func findLibraryNames(text string) []string {
+func findLibraryNames(text string, names chan<- []string) {
 	libNames := make([]string, 0, startSize)
 	targetMatch := string(` *add_(?:library|executable)\( *(\w*)`)
 	r := regexp.MustCompile(targetMatch)
@@ -90,20 +88,20 @@ func findLibraryNames(text string) []string {
 	for _, match := range matches {
 		libNames = append(libNames, match[1])
 	}
-	return libNames
+	names <- libNames
 }
 
 // findLibraryNames finds the name of project in CMakeLists.txt
-func findProjectName(text string) (string, error) {
+func findProjectName(text string, name chan<- string) {
 	targetMatch := string(` *project\((\w*)\)`)
 	r := regexp.MustCompile(targetMatch)
 	matches := r.FindAllStringSubmatch(text, -1)
 	if len(matches) > 1 {
-		return "", errors.New("more than one project names were found")
+		name <- ""
 	} else if len(matches) < 1 {
-		return "", errors.New("no project name was found")
+		name <- ""
 	}
-	return matches[0][1], nil
+	name <- matches[0][1]
 }
 
 func replaceString(src string, pattern string, repl string) string {
