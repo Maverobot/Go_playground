@@ -33,23 +33,13 @@ if(CLANG_TOOLS)
 endif()
 `
 
-func isFlagPassed(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
-}
-
 func main() {
 
 	listFilePath := flag.String("path", "", "path to a CMakeLists.txt file")
 
 	flag.Parse()
 
-	if !isFlagPassed(*listFilePath) {
+	if len(os.Args) < 2 || len(*listFilePath) == 0 {
 		flag.Usage()
 		return
 	}
