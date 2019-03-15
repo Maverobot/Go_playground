@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,15 +33,26 @@ if(CLANG_TOOLS)
 endif()
 `
 
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
 func main() {
 
-	if len(os.Args) < 2 {
-		fmt.Printf("Too few arguments...\n")
+	listFilePath := flag.String("path", "", "path to a CMakeLists.txt file")
+
+	flag.Parse()
+
+	if !isFlagPassed(*listFilePath) {
+		flag.Usage()
 		return
 	}
-
-	// Take the first argument as path to CMakeLists.txt
-	listFilePath := os.Args[1]
 
 	ex, err := os.Executable()
 	if err != nil {
@@ -49,7 +61,7 @@ func main() {
 	exPath := filepath.Dir(ex)
 	fmt.Println(exPath)
 
-	newTemplate := getTemplate(listFilePath)
+	newTemplate := getTemplate(*listFilePath)
 
 	fmt.Print(newTemplate)
 }
