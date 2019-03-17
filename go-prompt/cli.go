@@ -53,7 +53,7 @@ func createCompleter(textList []string) prompt.Completer {
 		children := getSuggestionsPath(d.GetWordBeforeCursor())
 
 		for _, value := range children {
-			s = append(s, prompt.Suggest{Text: value, Description: "path"})
+			s = append(s, prompt.Suggest{Text: value, Description: ""})
 		}
 
 		return prompt.FilterHasPrefix(s, d.GetWordBeforeCursor(), true)
