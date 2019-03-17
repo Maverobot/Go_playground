@@ -15,11 +15,8 @@ import (
 
 func getSuggestionsPath(path string) []string {
 	// remove the letters after and inclusive the last "/"
-	//fmt.Printf("path before: %s", path)
 	var re = regexp.MustCompile(`\w*$`)
 	path = re.ReplaceAllString(path, ``)
-
-	//fmt.Printf("path after: %s", path)
 
 	info, err := os.Stat(path)
 	if err != nil {
