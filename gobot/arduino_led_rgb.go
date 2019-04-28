@@ -41,25 +41,58 @@ func (rgb *RGB) Next() {
 	}
 }
 
+func moveTowards(v byte, target byte) byte {
+	if v < target {
+		return v + 1
+	} else if v > target {
+		return v - 1
+	}
+	return v
+}
+
+// MoveTowards gradually change current rgb value towards the target
+func (rgb *RGB) MoveTowards(target RGB) bool {
+	if rgb.r != target.r || rgb.g != target.g || rgb.b != target.b {
+		rgb.r = moveTowards(rgb.r, target.r)
+		rgb.g = moveTowards(rgb.g, target.g)
+		rgb.b = moveTowards(rgb.b, target.b)
+		return false
+	}
+	return true
+}
+
 func main() {
 	firmataAdaptor := firmata.NewAdaptor(os.Args[1])
 	ledR := gpio.NewLedDriver(firmataAdaptor, "6")
 	ledG := gpio.NewLedDriver(firmataAdaptor, "5")
 	ledB := gpio.NewLedDriver(firmataAdaptor, "3")
 
-	rgb := &RGB{
+	rgb := RGB{
 		r: 0,
 		g: 0,
 		b: 0,
 	}
 
+	var pattern []RGB
+	pattern = append(pattern, RGB{r: 255, g: 0, b: 0})
+	pattern = append(pattern, RGB{r: 0, g: 255, b: 0})
+	pattern = append(pattern, RGB{r: 0, g: 0, b: 255})
+
+	for i, p := range pattern {
+		fmt.Printf("pattern[%d] = [%d, %d, %d]\n", i, p.r, p.g, p.b)
+	}
+
+	count := 0
 	work := func() {
-		gobot.Every(time.Microsecond, func() {
+		gobot.Every(3*time.Millisecond, func() {
 			fmt.Printf("rgb = [%d, %d, %d]\n", rgb.r, rgb.g, rgb.b)
 			ledR.Brightness(rgb.r)
 			ledG.Brightness(rgb.g)
 			ledB.Brightness(rgb.b)
-			rgb.Next()
+			if rgb.MoveTowards(pattern[count]) {
+				count++
+				count = count % len(pattern)
+			}
 		})
 	}
 
