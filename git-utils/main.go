@@ -2,35 +2,43 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
+	"path"
 
+	"github.com/jedib0t/go-pretty/table"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-
-	"github.com/jedib0t/go-pretty/table"
 )
 
 func main() {
-	repoPath := os.Args[1]
+	dirPath := os.Args[1]
 
-	Info("git clone some random repo")
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	repo, err := git.PlainOpen(repoPath)
-	CheckIfError(err)
+	var rows []table.Row
 
-	branch, tag, err := GetCurrentBranchAndTag(repo)
-	CheckIfError(err)
-
-	Info("%s - %s", branch, tag)
+	for _, f := range files {
+		if f.IsDir() {
+			absPath := path.Join(dirPath, f.Name())
+			branch, tag, err := GetCurrentBranchAndTagFromPath(absPath)
+			if err == nil {
+				// Info("%s - %s - %s", f.Name(), branch, tag)
+				rows = append(rows, table.Row{f.Name(), branch, tag})
+			}
+		}
+	}
 
 	// Print the branch names and tags in a table
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "Path", "Branch", "Tag"})
-	t.AppendRows([]table.Row{
-		{1, repoPath, branch, tag},
-	})
+	t.AppendHeader(table.Row{"Path", "Branch", "Tag"})
+	t.AppendRows(rows)
 	t.Render()
 }
 
@@ -45,6 +53,19 @@ func CheckIfError(err error) {
 
 	fmt.Printf("\x1b[31;1m%s\x1b[0m\n", fmt.Sprintf("error: %s", err))
 	os.Exit(1)
+}
+
+// func GetRemotes(repository *git.Repository) []string {
+// 	remotes, err := repository.Remotes()
+// 	len(remotes)
+// }
+
+func GetCurrentBranchAndTagFromPath(path string) (string, string, error) {
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return "", "", err
+	}
+	return GetCurrentBranchAndTag(r)
 }
 
 func GetCurrentBranchAndTag(repository *git.Repository) (string, string, error) {
