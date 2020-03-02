@@ -26,18 +26,30 @@ func main() {
 	for _, f := range files {
 		if f.IsDir() {
 			absPath := path.Join(dirPath, f.Name())
-			branch, tag, err := GetCurrentBranchAndTagFromPath(absPath)
-			if err == nil {
-				// Info("%s - %s - %s", f.Name(), branch, tag)
-				rows = append(rows, table.Row{f.Name(), branch, tag})
+			branch, tag, err1 := GetCurrentBranchAndTagFromPath(absPath)
+			remoteNames, err2 := GetRemotes(absPath)
+			head, err3 := GetCurrentCommitFromPath(absPath)
+			if err1 == nil && err2 == nil && err3 == nil {
+				if len(remoteNames) == 0 {
+					rows = append(rows, table.Row{f.Name(), head[:7], branch, tag})
+					continue
+				} else {
+					rows = append(rows, table.Row{f.Name(), head[:7], branch, tag, remoteNames[0]})
+				}
+				for i, remoteName := range remoteNames {
+					if i == 0 {
+						continue
+					}
+					rows = append(rows, table.Row{"", "", "", remoteName})
+				}
 			}
 		}
 	}
 
-	// Print the branch names and tags in a table
+	// Print the branch names, tags and remotes in a table
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Path", "Branch", "Tag"})
+	t.AppendHeader(table.Row{"Repository", "Head", "Branch", "Tag", "Remotes"})
 	t.AppendRows(rows)
 	t.Render()
 }
@@ -55,10 +67,19 @@ func CheckIfError(err error) {
 	os.Exit(1)
 }
 
-// func GetRemotes(repository *git.Repository) []string {
-// 	remotes, err := repository.Remotes()
-// 	len(remotes)
-// }
+func GetRemotes(path string) ([]string, error) {
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return nil, err
+	}
+	remotes, err := r.Remotes()
+	remoteNames := make([]string, len(remotes))
+	for i, remote := range remotes {
+		remoteNames[i] = remote.String()
+		// Info(remote.String())
+	}
+	return remoteNames, nil
+}
 
 func GetCurrentBranchAndTagFromPath(path string) (string, string, error) {
 	r, err := git.PlainOpen(path)
@@ -101,7 +122,15 @@ func GetCurrentBranchAndTag(repository *git.Repository) (string, string, error) 
 	return currentBranchName, currentTagName, nil
 }
 
-func GetCurrentCommitFromRepository(repository *git.Repository) (string, error) {
+func GetCurrentCommitFromPath(path string) (string, error) {
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return "", err
+	}
+	return GetCurrentCommit(r)
+}
+
+func GetCurrentCommit(repository *git.Repository) (string, error) {
 	headRef, err := repository.Head()
 	if err != nil {
 		return "", err
